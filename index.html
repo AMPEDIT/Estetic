@@ -1,0 +1,970 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Visualizer Portrait</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px 15px 40px;
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    text-align: center;
+    font-size: 28px;
+    margin: 0 0 38px;
+}
+
+.preview {
+    width: 100%;
+    max-width: 650px;
+    margin: auto;
+    overflow: hidden;
+    border-radius: 22px;
+    background: #222;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.settings {
+    width: 100%;
+    max-width: 650px;
+    margin: 30px auto 0;
+    padding: 25px;
+    border-radius: 22px;
+    background: #202020;
+}
+
+.menu-section {
+    margin-top: 25px;
+    padding-top: 22px;
+    border-top: 1px solid #444;
+}
+
+.menu-section:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+h2 {
+    font-size: 25px;
+    margin: 0 0 22px;
+}
+
+label {
+    display: block;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-size: 17px;
+}
+
+input[type="text"],
+input[type="file"],
+select {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    font-size: 15px;
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    margin-top: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #1db954;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+button.secondary {
+    background: #444;
+}
+
+.info {
+    color: #aaa;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.status {
+    color: #1db954;
+    font-size: 14px;
+    margin-top: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>MY MUSIC VISUALIZER</h1>
+
+<div class="preview">
+    <canvas id="canvas" width="1080" height="1920"></canvas>
+</div>
+
+<div class="settings">
+
+    <!-- MENU PENGATURAN -->
+
+    <div class="menu-section">
+        <h2>MENU PENGATURAN</h2>
+
+        <label>Logo Musik</label>
+        <input type="file" id="logoInput" accept="image/*">
+
+        <label>Musik / Audio</label>
+        <input type="file" id="audioInput" accept="audio/*">
+
+        <label>Background</label>
+        <input type="file" id="backgroundInput" accept="image/*">
+
+        <label>Judul Lagu</label>
+        <input type="text" id="titleInput" value="BY NAYLA FARDILA">
+
+        <label>Nama Artis</label>
+        <input type="text" id="artistInput" value="Andri Fynky">
+
+        <label>Blur Background</label>
+        <input type="range" id="blur" min="0" max="40" value="18">
+
+        <label>Gelap Background</label>
+        <input type="range" id="darkness" min="0" max="90" value="35">
+
+        <label>Posisi Player</label>
+        <input type="range" id="position" min="10" max="90" value="50">
+
+        <label>Tinggi Spectrum</label>
+        <input type="range" id="spectrumSize" min="2" max="15" value="6">
+
+        <button onclick="playMusic()">PLAY MUSIK</button>
+        <button class="secondary" onclick="pauseMusic()">PAUSE MUSIK</button>
+    </div>
+
+
+    <!-- MENU RESOLUSI -->
+
+    <div class="menu-section">
+        <h2>MENU RESOLUSI</h2>
+
+        <label>Pilih Resolusi Video</label>
+
+        <select id="resolution">
+            <option value="1080x1920" selected>1080 × 1920 (Full HD Portrait)</option>
+            <option value="720x1280">720 × 1280 (HD Portrait)</option>
+            <option value="1440x2560">1440 × 2560 (2K Portrait)</option>
+            <option value="2160x3840">2160 × 3840 (4K Portrait)</option>
+        </select>
+
+        <p class="info">
+            Resolusi yang dipilih akan digunakan saat export.
+            Resolusi tinggi membutuhkan kemampuan perangkat lebih besar.
+        </p>
+
+        <button class="secondary" onclick="applyResolution()">
+            TERAPKAN RESOLUSI
+        </button>
+
+        <p class="status" id="resolutionStatus">
+            Resolusi aktif: 1080 × 1920
+        </p>
+    </div>
+
+
+    <!-- MENU EKSPOR -->
+
+    <div class="menu-section">
+        <h2>MENU EKSPOR</h2>
+
+        <label>Frame Rate (FPS)</label>
+
+        <select id="fps">
+            <option value="30">30 FPS</option>
+            <option value="60" selected>60 FPS</option>
+        </select>
+
+        <label>Format Video</label>
+
+        <select id="format">
+            <option value="webm" selected>WebM</option>
+        </select>
+
+        <p class="info">
+            Video akan diekspor mengikuti durasi musik.
+            Format hasil export adalah WebM.
+        </p>
+
+        <button onclick="exportVideo()">EXPORT VIDEO</button>
+
+        <p class="status" id="exportStatus">
+            Siap untuk export.
+        </p>
+    </div>
+
+</div>
+
+<audio id="audio"></audio>
+
+
+<script>
+
+// =====================================
+// ELEMENT
+// =====================================
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const audio = document.getElementById("audio");
+
+const logoInput = document.getElementById("logoInput");
+const backgroundInput = document.getElementById("backgroundInput");
+
+const titleInput = document.getElementById("titleInput");
+const artistInput = document.getElementById("artistInput");
+
+const blur = document.getElementById("blur");
+const darkness = document.getElementById("darkness");
+const position = document.getElementById("position");
+const spectrumSize = document.getElementById("spectrumSize");
+
+const resolution = document.getElementById("resolution");
+const fpsSelect = document.getElementById("fps");
+
+
+// =====================================
+// VARIABLES
+// =====================================
+
+let logo = new Image();
+let background = new Image();
+
+let logoLoaded = false;
+let backgroundLoaded = false;
+
+let audioContext = null;
+let analyser = null;
+let source = null;
+let audioDestination = null;
+
+let frequencyData = null;
+
+let isPlaying = false;
+let rotation = 0;
+let recording = false;
+
+let titleOffset = 0;
+let lastMarqueeTime = 0;
+
+
+// =====================================
+// LOAD LOGO
+// =====================================
+
+logoInput.addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+
+    logo.onload = function() {
+        logoLoaded = true;
+    };
+
+    logo.src = url;
+});
+
+
+// =====================================
+// LOAD BACKGROUND
+// =====================================
+
+backgroundInput.addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+
+    background.onload = function() {
+        backgroundLoaded = true;
+    };
+
+    background.src = url;
+});
+
+
+// =====================================
+// LOAD AUDIO
+// =====================================
+
+document.getElementById("audioInput")
+.addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    audio.src = URL.createObjectURL(file);
+    audio.load();
+
+    isPlaying = false;
+    titleOffset = 0;
+    lastMarqueeTime = 0;
+});
+
+
+// =====================================
+// AUDIO SYSTEM
+// =====================================
+
+function setupAudio() {
+    if (audioContext) return;
+
+    const AudioContextClass =
+        window.AudioContext || window.webkitAudioContext;
+
+    audioContext = new AudioContextClass();
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+
+    frequencyData = new Uint8Array(
+        analyser.frequencyBinCount
+    );
+
+    source = audioContext.createMediaElementSource(audio);
+
+    audioDestination =
+        audioContext.createMediaStreamDestination();
+
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+    analyser.connect(audioDestination);
+}
+
+
+// =====================================
+// PLAY MUSIC
+// =====================================
+
+async function playMusic() {
+    if (!audio.src) {
+        alert("Pilih musik terlebih dahulu!");
+        return;
+    }
+
+    setupAudio();
+
+    if (audioContext.state === "suspended") {
+        await audioContext.resume();
+    }
+
+    try {
+        await audio.play();
+        isPlaying = true;
+        lastMarqueeTime = performance.now();
+    } catch(error) {
+        alert("Musik tidak dapat diputar.");
+    }
+}
+
+
+// =====================================
+// PAUSE MUSIC
+// =====================================
+
+function pauseMusic() {
+    audio.pause();
+    isPlaying = false;
+    lastMarqueeTime = 0;
+}
+
+
+// =====================================
+// RESOLUTION
+// =====================================
+
+function applyResolution() {
+    if (recording) {
+        alert("Tidak bisa mengubah resolusi saat export.");
+        return;
+    }
+
+    const selected = resolution.value.split("x");
+
+    const width = Number(selected[0]);
+    const height = Number(selected[1]);
+
+    canvas.width = width;
+    canvas.height = height;
+
+    document.getElementById("resolutionStatus").textContent =
+        "Resolusi aktif: " + width + " × " + height;
+}
+
+
+// =====================================
+// BACKGROUND
+// =====================================
+
+function drawBackground() {
+    ctx.save();
+
+    if (backgroundLoaded) {
+        const scale = Math.max(
+            canvas.width / background.width,
+            canvas.height / background.height
+        );
+
+        const width = background.width * scale;
+        const height = background.height * scale;
+
+        const x = (canvas.width - width) / 2;
+        const y = (canvas.height - height) / 2;
+
+        ctx.filter = "blur(" + blur.value + "px)";
+
+        ctx.drawImage(
+            background,
+            x - 100,
+            y - 100,
+            width + 200,
+            height + 200
+        );
+
+        ctx.filter = "none";
+
+    } else {
+        ctx.fillStyle = "#252525";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    ctx.fillStyle =
+        "rgba(0,0,0," + Number(darkness.value) / 100 + ")";
+
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.restore();
+}
+
+
+// =====================================
+// ROUNDED RECTANGLE
+// =====================================
+
+function roundedRect(x, y, w, h, r) {
+    ctx.beginPath();
+
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+
+    ctx.quadraticCurveTo(
+        x + w, y, x + w, y + r
+    );
+
+    ctx.lineTo(x + w, y + h - r);
+
+    ctx.quadraticCurveTo(
+        x + w, y + h, x + w - r, y + h
+    );
+
+    ctx.lineTo(x + r, y + h);
+
+    ctx.quadraticCurveTo(
+        x, y + h, x, y + h - r
+    );
+
+    ctx.lineTo(x, y + r);
+
+    ctx.quadraticCurveTo(
+        x, y, x + r, y
+    );
+
+    ctx.closePath();
+}
+
+
+// =====================================
+// MUSIC LOGO
+// =====================================
+
+function drawLogo(x, y, scale) {
+    const size = 135 * scale;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+
+    ctx.fillStyle = "#000";
+    ctx.fill();
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+
+    if (logoLoaded) {
+        ctx.translate(x, y);
+
+        if (isPlaying) {
+            rotation += 0.015;
+        }
+
+        ctx.rotate(rotation);
+
+        const ratio = Math.min(
+            size / logo.width,
+            size / logo.height
+        );
+
+        const w = logo.width * ratio;
+        const h = logo.height * ratio;
+
+        ctx.drawImage(
+            logo,
+            -w / 2,
+            -h / 2,
+            w,
+            h
+        );
+
+    } else {
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold " + (25 * scale) + "px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText("LOGO", x, y + 8 * scale);
+    }
+
+    ctx.restore();
+    ctx.restore();
+}
+
+
+// =====================================
+// SPECTRUM
+// =====================================
+
+function drawSpectrum(startX, centerY, scale) {
+    if (analyser && isPlaying) {
+        analyser.getByteFrequencyData(frequencyData);
+    }
+
+    const barCount = 12;
+    const barWidth = 5 * scale;
+    const gap = 5 * scale;
+
+    const maxHeight =
+        6 * Number(spectrumSize.value) * scale;
+
+    const totalWidth = barCount * (barWidth + gap);
+    const start = startX - totalWidth / 2;
+
+    for (let i = 0; i < barCount; i++) {
+        let value = 0;
+
+        if (frequencyData && isPlaying) {
+            value = frequencyData[i * 3] / 255;
+        }
+
+        const height = isPlaying
+            ? Math.max(3 * scale, value * maxHeight)
+            : 3 * scale;
+
+        ctx.fillStyle = "#ffffff";
+
+        ctx.fillRect(
+            start + i * (barWidth + gap),
+            centerY - height / 2,
+            barWidth,
+            height
+        );
+    }
+}
+
+
+// =====================================
+// SONG TEXT - BERJALAN BERULANG
+// =====================================
+
+function drawSongText(x, y, scale) {
+    const title = titleInput.value || "JUDUL LAGU";
+    const artist = artistInput.value || "NAMA ARTIS";
+
+    ctx.save();
+
+    const textAreaWidth = 430 * scale;
+
+    ctx.beginPath();
+    ctx.rect(
+        x,
+        y - 40 * scale,
+        textAreaWidth,
+        90 * scale
+    );
+    ctx.clip();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold " + (30 * scale) + "px Arial";
+    ctx.textAlign = "left";
+
+    const titleWidth = ctx.measureText(title).width;
+
+    if (titleWidth > textAreaWidth) {
+
+        const now = performance.now();
+
+        if (isPlaying) {
+            if (lastMarqueeTime === 0) {
+                lastMarqueeTime = now;
+            }
+
+            const delta = Math.min(now - lastMarqueeTime, 50);
+            const speed = 45 * scale;
+            const loopWidth = titleWidth + 70 * scale;
+
+            titleOffset =
+                (titleOffset + speed * delta / 1000) % loopWidth;
+        }
+
+        lastMarqueeTime = now;
+
+        const loopWidth = titleWidth + 70 * scale;
+
+        // Judul digambar dua kali agar gerakannya menyambung.
+        ctx.fillText(title, x - titleOffset, y);
+        ctx.fillText(title, x - titleOffset + loopWidth, y);
+
+    } else {
+        titleOffset = 0;
+        lastMarqueeTime = 0;
+
+        ctx.fillText(title, x, y);
+    }
+
+    ctx.font = "italic " + (23 * scale) + "px Arial";
+    ctx.fillStyle = "#ddd";
+
+    ctx.fillText(
+        artist,
+        x,
+        y + 35 * scale
+    );
+
+    ctx.restore();
+}
+
+
+// =====================================
+// SPOTIFY LOGO - DIPERBAIKI
+// =====================================
+
+function drawSpotify(x, y, scale) {
+    ctx.save();
+
+    const radius = 27 * scale;
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+    ctx.fillStyle = "#1DB954";
+    ctx.fill();
+
+    ctx.strokeStyle = "#000";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Garis pertama
+    ctx.lineWidth = 3.5 * scale;
+
+    ctx.beginPath();
+    ctx.moveTo(x - 15 * scale, y - 9 * scale);
+
+    ctx.bezierCurveTo(
+        x - 5 * scale,
+        y - 13 * scale,
+        x + 7 * scale,
+        y - 11 * scale,
+        x + 15 * scale,
+        y - 6 * scale
+    );
+
+    ctx.stroke();
+
+    // Garis kedua
+    ctx.lineWidth = 3 * scale;
+
+    ctx.beginPath();
+    ctx.moveTo(x - 13 * scale, y - 1 * scale);
+
+    ctx.bezierCurveTo(
+        x - 4 * scale,
+        y - 4 * scale,
+        x + 6 * scale,
+        y - 2 * scale,
+        x + 12 * scale,
+        y + 2 * scale
+    );
+
+    ctx.stroke();
+
+    // Garis ketiga
+    ctx.lineWidth = 2.5 * scale;
+
+    ctx.beginPath();
+    ctx.moveTo(x - 10 * scale, y + 7 * scale);
+
+    ctx.bezierCurveTo(
+        x - 3 * scale,
+        y + 5 * scale,
+        x + 5 * scale,
+        y + 6 * scale,
+        x + 9 * scale,
+        y + 9 * scale
+    );
+
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+
+// =====================================
+// PLAYER
+// =====================================
+
+function drawPlayer() {
+    const scale = canvas.width / 1080;
+
+    const boxWidth = 950 * scale;
+    const boxHeight = 150 * scale;
+
+    const boxX = (canvas.width - boxWidth) / 2;
+
+    const centerY =
+        canvas.height * (Number(position.value) / 100);
+
+    const boxY = centerY - boxHeight / 2;
+
+    ctx.save();
+
+    roundedRect(
+        boxX,
+        boxY,
+        boxWidth,
+        boxHeight,
+        80 * scale
+    );
+
+    ctx.fillStyle = "rgba(45,45,45,0.82)";
+    ctx.fill();
+
+    ctx.restore();
+
+    // Logo musik di kiri
+    drawLogo(
+        boxX + 95 * scale,
+        centerY,
+        scale
+    );
+
+    // Spectrum pendek
+    drawSpectrum(
+        boxX + 245 * scale,
+        centerY,
+        scale
+    );
+
+    // Judul dan artis
+    drawSongText(
+        boxX + 340 * scale,
+        centerY - 5 * scale,
+        scale
+    );
+
+    // Spotify di paling kanan
+    drawSpotify(
+        boxX + 875 * scale,
+        centerY,
+        scale
+    );
+}
+
+
+// =====================================
+// ANIMATION
+// =====================================
+
+function animate() {
+    ctx.clearRect(
+        0, 0, canvas.width, canvas.height
+    );
+
+    drawBackground();
+    drawPlayer();
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+
+
+// =====================================
+// EXPORT VIDEO
+// =====================================
+
+async function exportVideo() {
+    if (!audio.src) {
+        alert("Pilih musik terlebih dahulu!");
+        return;
+    }
+
+    if (recording) return;
+
+    setupAudio();
+
+    if (audioContext.state === "suspended") {
+        await audioContext.resume();
+    }
+
+    const selectedFPS = Number(fpsSelect.value);
+
+    const canvasStream =
+        canvas.captureStream(selectedFPS);
+
+    const combinedStream = new MediaStream();
+
+    canvasStream.getVideoTracks().forEach(track => {
+        combinedStream.addTrack(track);
+    });
+
+    audioDestination.stream.getAudioTracks().forEach(track => {
+        combinedStream.addTrack(track);
+    });
+
+    let options = {};
+
+    if (MediaRecorder.isTypeSupported(
+        "video/webm;codecs=vp9,opus"
+    )) {
+        options.mimeType = "video/webm;codecs=vp9,opus";
+
+    } else if (MediaRecorder.isTypeSupported(
+        "video/webm;codecs=vp8,opus"
+    )) {
+        options.mimeType = "video/webm;codecs=vp8,opus";
+
+    } else {
+        options.mimeType = "video/webm";
+    }
+
+    let recorder;
+
+    try {
+        recorder = new MediaRecorder(combinedStream, {
+            ...options,
+            videoBitsPerSecond: 12000000,
+            audioBitsPerSecond: 192000
+        });
+
+    } catch(error) {
+        alert("Browser tidak mendukung export video.");
+        return;
+    }
+
+    const chunks = [];
+
+    recorder.ondataavailable = function(e) {
+        if (e.data && e.data.size > 0) {
+            chunks.push(e.data);
+        }
+    };
+
+    recorder.onstop = function() {
+        const blob = new Blob(chunks, {
+            type: "video/webm"
+        });
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "Music_Visualizer.webm";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 10000);
+
+        recording = false;
+        isPlaying = false;
+
+        audio.pause();
+        audio.currentTime = 0;
+
+        document.getElementById("exportStatus").textContent =
+            "Export selesai!";
+    };
+
+    recording = true;
+
+    document.getElementById("exportStatus").textContent =
+        "Sedang merekam video...";
+
+    audio.pause();
+    audio.currentTime = 0;
+
+    isPlaying = true;
+
+    recorder.start(1000);
+
+    try {
+        await audio.play();
+
+    } catch(error) {
+        recorder.stop();
+        recording = false;
+
+        alert("Musik gagal diputar.");
+        return;
+    }
+
+    audio.onended = function() {
+        if (recorder && recorder.state !== "inactive") {
+            recorder.stop();
+        }
+    };
+}
+
+</script>
+
+</body>
+</html>
